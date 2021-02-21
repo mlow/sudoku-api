@@ -227,7 +227,6 @@ export class SudokuMath {
       }
       if (fails > removeNext.length) {
         fails = 0;
-        console.log("Backstepping..");
         Array(removed.length)
           .fill(null)
           .forEach(() => replace());

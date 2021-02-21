@@ -1,5 +1,5 @@
 import { gql } from "../mods";
-import { generate } from "../sudoku/index";
+import { generate, GenerateArguments } from "../sudoku/index";
 
 export const typeDefs = gql`
   type Cell {
@@ -36,12 +36,6 @@ export const typeDefs = gql`
     generate(regionWidth: Int = 3, regionHeight: Int = 3, clues: Int!): Sudoku!
   }
 `;
-
-type GenerateArguments = {
-  regionWidth: number;
-  regionHeight: number;
-  clues: number;
-};
 
 export const resolvers = {
   Query: {
