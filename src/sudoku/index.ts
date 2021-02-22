@@ -1,15 +1,9 @@
-import { SudokuMath } from "./math";
 import { StaticPool, isTimeoutError } from "node-worker-threads-pool";
 
 import WORKERS from "physical-cpu-count";
-const TIMEOUT = 5000;
+const TIMEOUT = 20000;
 
 export type Cell = { value: number | null };
-export type CellArray = Cell[];
-export type Row = CellArray;
-export type Column = CellArray;
-export type Region = CellArray;
-export type Puzzle = CellArray;
 
 export type GenerateArguments = {
   regionWidth: number;
@@ -20,21 +14,16 @@ export type GenerateArguments = {
 export type Sudoku = {
   regionWidth: number;
   regionHeight: number;
-  cells: number;
-  raw: Puzzle;
-  rows: () => Row[];
-  columns: () => Column[];
-  regions: () => Region[];
+  size: number;
+  cells: Cell[][];
 };
 
-const pool = new StaticPool<GenerateArguments, [any, Puzzle]>({
+const pool = new StaticPool<GenerateArguments, Cell[][]>({
   size: WORKERS,
   task: "./src/sudoku/worker.js",
 });
 
-const _math = new SudokuMath(0, 0);
 let activeWorkers = 0;
-
 export async function generate(
   regionWidth: number,
   regionHeight: number,
@@ -46,7 +35,7 @@ export async function generate(
 
   try {
     activeWorkers++;
-    const [math, puzzle] = await pool.exec(
+    const puzzle = await pool.exec(
       {
         regionWidth,
         regionHeight,
@@ -55,16 +44,11 @@ export async function generate(
       TIMEOUT
     );
 
-    Object.assign(_math, math);
-
     return {
       regionWidth,
       regionHeight,
-      cells: math.boardCells,
-      raw: puzzle,
-      rows: () => _math.regionsToRows(puzzle, true),
-      columns: () => _math.regionsToCols(puzzle, true),
-      regions: () => _math.chunkRegions(puzzle),
+      size: (regionWidth * regionHeight) ** 2,
+      cells: puzzle,
     };
   } catch (err) {
     if (isTimeoutError(err)) {

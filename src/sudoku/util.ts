@@ -1,14 +1,14 @@
 import { Cell } from "./index";
 
-function randInt(lower: number, upper: number) {
-  return lower + Math.trunc(Math.random() * (upper - lower + 1));
+export function randInt(lower: number, upper: number) {
+  return Math.floor(Math.random() * (upper - lower)) + lower;
 }
 
-export function shuffle(arr: any[]) {
+export function shuffle<T>(arr: T[]) {
   const length = arr.length;
-  let lastIndex = length - 1;
+  const last = length;
   for (let i = 0; i < length; i++) {
-    const rand = randInt(i, lastIndex);
+    const rand = randInt(i, last);
     const tmp = arr[rand];
 
     arr[rand] = arr[i];
@@ -17,8 +17,8 @@ export function shuffle(arr: any[]) {
   return arr;
 }
 
-export function chunkify(arr: any[], chunkSize: number) {
-  const chunks = Array(arr.length / chunkSize);
+export function chunkify<T>(arr: T[], chunkSize: number) {
+  const chunks = Array<T[]>(arr.length / chunkSize);
   for (let i = 0, len = chunks.length; i < len; i++) {
     const start = i * chunkSize;
     chunks[i] = arr.slice(start, start + chunkSize);
@@ -27,7 +27,7 @@ export function chunkify(arr: any[], chunkSize: number) {
 }
 
 export function range(start: number, end: number) {
-  return Array(1 + end - start)
+  return Array(end - start)
     .fill(null)
     .map((_, i) => start + i);
 }
@@ -56,4 +56,31 @@ export function addCellValuesToSet(set: Set<number>, cells: Cell[]) {
     if (!!cell.value) set.add(cell.value);
   });
   return set;
+}
+
+export function prettyPrint(puzzle: Cell[][]) {
+  let width = Math.sqrt(puzzle[0].length);
+  let height = Math.sqrt(puzzle.length);
+
+  puzzle.forEach((row, i) => {
+    let line = "";
+    row.forEach(({ value: cell }, j) => {
+      if (j > 0 && j % width == 0) {
+        line += "| ";
+      }
+      line += ((cell ? cell : " ") + " ").padStart(3, " ");
+    });
+
+    if (i > 0 && i % height == 0) {
+      let divider = "";
+      row.forEach((_, j) => {
+        if (j > 0 && j % width == 0) {
+          divider += "  ";
+        }
+        divider += "-- ";
+      });
+      console.log(divider);
+    }
+    console.log(line);
+  });
 }

@@ -15,20 +15,11 @@ export const typeDefs = gql`
     "The height of each region."
     regionHeight: Int!
 
-    "The total number of cells in the board."
-    cells: Int!
-
-    "The 'raw' board, an array of cells in region-first order."
-    raw: [Cell!]!
+    "The number of cells in the board."
+    size: Int!
 
     "The rows of the board, from top to bottom."
-    rows: [[Cell!]!]!
-
-    "The columns of the board, from left to right."
-    columns: [[Cell!]!]!
-
-    "The regions of the board, book-ordered."
-    regions: [[Cell!]!]!
+    cells: [[Cell!]!]!
   }
 
   type Query {

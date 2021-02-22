@@ -1,326 +1,278 @@
-import { Cell, Row, Column, Region, Puzzle } from "./index";
 import {
-  clone,
-  range,
-  shuffle,
-  chunkify,
-  mapArray,
-  addCellValuesToSet,
-} from "./util";
+  DLX,
+  DNode,
+  CNode,
+  linkNodesLR,
+  addNodeToColumn,
+  maskRow,
+  unmaskRow,
+} from "./dlx";
+import { shuffle, range } from "./util";
+import { Cell } from "./index";
 
-function getTakenValues(region: Region, row: Row, col: Column) {
-  const filter = new Set<number>();
-  addCellValuesToSet(filter, region);
-  addCellValuesToSet(filter, row);
-  addCellValuesToSet(filter, col);
-  return filter;
-}
+type NodeMeta = {
+  row: number;
+  col: number;
+  region: number;
+  value: number;
+};
+
+type BoardInfo = [number, number, number, number, number];
 
 export class SudokuMath {
   regionWidth: number;
   regionHeight: number;
-  boardWidth: number;
-  boardHeight: number;
-  width: number;
-  height: number;
-  boardCells: number;
-  regionCells: number;
-  legalValues: number[];
 
-  _regionsFromIndex: number[];
-  _rowsFromIndex: number[];
-  _colsFromIndex: number[];
-  _rowIndexToRegionIndex: number[];
-  _colIndexToRegionIndex: number[];
-  _regionIndexToRowIndex: number[];
-  _regionIndexToColIndex: number[];
+  values: number;
+  values2: number;
+
+  indexes: number[];
+
+  candidates: BoardInfo[];
 
   constructor(regionWidth: number, regionHeight: number) {
     this.regionWidth = regionWidth;
     this.regionHeight = regionHeight;
-    this.boardWidth = regionHeight;
-    this.boardHeight = regionWidth;
-    this.width = regionWidth * this.boardWidth;
-    this.height = regionHeight * this.boardHeight;
-    this.boardCells = this.width * this.height;
-    this.regionCells = regionWidth * regionHeight;
-    this.legalValues = range(1, this.regionCells);
 
-    this._regionsFromIndex = Array(this.boardCells);
-    this._rowsFromIndex = Array(this.boardCells);
-    this._colsFromIndex = Array(this.boardCells);
-    this._rowIndexToRegionIndex = Array(this.boardCells);
-    this._colIndexToRegionIndex = Array(this.boardCells);
-    this._regionIndexToRowIndex = Array(this.boardCells);
-    this._regionIndexToColIndex = Array(this.boardCells);
+    this.values = regionWidth * regionHeight;
+    this.values2 = this.values * this.values;
 
-    for (let i = 0; i < this.boardCells; i++) {
-      this._regionsFromIndex[i] = this._regionFromRegionIndex(i);
+    this.indexes = Array(this.values2)
+      .fill(null)
+      .map((_, i) => i);
 
-      const [row, col] = this._rowColFromRegionIndex(i);
-      this._rowsFromIndex[i] = row;
-      this._colsFromIndex[i] = col;
-
-      const rowIndex = row * this.width + col;
-      const colIndex = col * this.height + row;
-      this._rowIndexToRegionIndex[rowIndex] = i;
-      this._colIndexToRegionIndex[i] = rowIndex;
-      this._regionIndexToRowIndex[i] = rowIndex;
-      this._regionIndexToColIndex[colIndex] = i;
-    }
+    this.candidates = Array.from(Array(this.values ** 3), (_, i) =>
+      this.getRowColRegionValFromCandidate(i)
+    );
   }
 
-  _regionFromRegionIndex(i: number) {
-    return Math.trunc(i / this.regionCells);
-  }
-
-  regionFromRegionIndex(i: number) {
-    return this._regionsFromIndex[i];
-  }
-
-  _rowColFromRegionIndex(i: number) {
-    const region = this.regionFromRegionIndex(i);
-    const cell = i % this.regionCells;
-    const regionRow = Math.trunc(region / this.boardWidth);
-    const regionCol = region % this.boardWidth;
-    const cellRow = Math.trunc(cell / this.regionWidth);
-    const cellCol = cell % this.regionWidth;
+  getConstraintIDs(val: number, row: number, col: number, region: number) {
     return [
-      regionRow * this.regionHeight + cellRow,
-      regionCol * this.regionWidth + cellCol,
+      // each cell has a value
+      row * this.values + col,
+      // each row has one of each value
+      this.values2 + row * this.values + val,
+      // each col has one of each value
+      this.values2 * 2 + col * this.values + val,
+      // each region has one of each value
+      this.values2 * 3 + region * this.values + val,
     ];
   }
 
-  rowColFromRegionIndex(i: number) {
-    return [this._rowsFromIndex[i], this._colsFromIndex[i]];
+  getRowColRegionValFromCandidate(candidate: number): BoardInfo {
+    const boardIndex = Math.floor(candidate / this.values);
+    const row = Math.floor(boardIndex / this.values);
+    const col = boardIndex % this.values;
+    const region =
+      Math.floor(row / this.regionHeight) * this.regionHeight +
+      Math.floor(col / this.regionWidth);
+    const val = candidate % this.values;
+    return [candidate, row, col, region, val];
   }
 
-  regionIndexToRowIndex(i: number) {
-    return this._regionIndexToRowIndex[i];
-  }
-
-  rowIndexToRegionIndex(i: number) {
-    return this._rowIndexToRegionIndex[i];
-  }
-
-  regionIndexToColIndex(i: number) {
-    return this._regionIndexToColIndex[i];
-  }
-
-  colIndexToRegionIndex(i: number) {
-    return this._colIndexToRegionIndex[i];
-  }
-
-  chunkRegions(cells: Cell[]) {
-    return chunkify(cells, this.regionCells);
-  }
-
-  regionsToRows(cells: Cell[], split = false) {
-    const rows = mapArray(cells, this._regionIndexToRowIndex);
-    return split ? chunkify(rows, this.width) : rows;
-  }
-
-  regionsToCols(cells: Cell[], split = false) {
-    const cols = mapArray(cells, this._regionIndexToColIndex);
-    return split ? chunkify(cols, this.height) : cols;
-  }
-
-  rowsToRegions(cells: Cell[], split = false) {
-    const regions = mapArray(cells, this._rowIndexToRegionIndex);
-    return split ? chunkify(regions, this.regionCells) : regions;
-  }
-
-  colsToRegions(cells: Cell[], split = false) {
-    const regions = mapArray(cells, this._colIndexToRegionIndex);
-    return split ? chunkify(regions, this.regionCells) : regions;
-  }
-
-  getBlankPuzzle(): Puzzle {
-    return Array(this.boardCells)
-      .fill(null)
-      .map((value) => ({ value }));
-  }
-
-  /**
-   * Returns the remaining legal values given a set of taken values.
-   *
-   * @param taken a set of taken values
-   */
-  getLegalValues(taken: Set<number>) {
-    return this.legalValues.filter((value) => !taken.has(value));
-  }
-
-  /**
-   * Returns which values are unavailable at a given location, looking at the
-   * row, column, and region of the given cell index.
-   *
-   * @param cell
-   * @param puzzle
-   * @param regions
-   */
-  getTakenValues(cell: number, puzzle: Puzzle, regions: Region[]) {
-    const rows = this.regionsToRows(puzzle, true);
-    const cols = this.regionsToCols(puzzle, true);
-    const [row, col] = this.rowColFromRegionIndex(cell);
-    const region = this.regionFromRegionIndex(cell);
-    return getTakenValues(regions[region], rows[row], cols[col]);
-  }
-
-  /**
-   * Returns whether a puzzle has only one solution.
-   *
-   * @param puzzle
-   */
-  hasOneSolution(puzzle: Cell[]) {
-    const optimistic = clone(puzzle);
-    if (this.optimisticSolver(optimistic)) {
-      return true;
+  _checkInput(cells: Cell[][]) {
+    if (cells.length !== this.values || cells[0].length !== this.values) {
+      throw new Error(
+        "Given cells array does not match regionWidth & regionHeight"
+      );
     }
-    return this.backTrackingSolver(optimistic, 2) === 1;
   }
 
-  /**
-   * Generates a single-solution sudoku puzzle with
-   *
-   * @param clues the number of cells to have pre-filled
-   */
-  generatePuzzle(clues: number) {
-    const puzzle = this.getBlankPuzzle();
-    this.backTrackingSolver(puzzle, 1, shuffle);
+  // this takes a bit of time and the value may need to be cached
+  getDLXHeader(
+    cells: undefined | Cell[][] = undefined,
+    randomSearch = false
+  ): [CNode, DNode[]] {
+    if (cells) this._checkInput(cells);
 
-    if (clues === -1 || clues >= puzzle.length) return puzzle;
+    const header = new CNode();
+    header.name = "h";
 
-    const orig = clone(puzzle);
+    const constraints = new Array<CNode>(this.values2 * 4)
+      .fill(null!)
+      .map((_, i) => {
+        const column = new CNode();
+        column.name = `${i}`;
+        column.meta = i;
+        return column;
+      });
 
-    const toRemove = puzzle.length - clues;
-    let removed: number[] = [];
-    let removeNext: number[] = shuffle(puzzle.map((_, i) => i));
+    // link together the header and constraint columns
+    linkNodesLR([header, ...constraints]);
 
-    const remove = () => {
-      const x = removeNext.shift() as any;
-      removed.push(x);
-      puzzle[x].value = null;
-    };
+    const candidates = randomSearch
+      ? shuffle(Array.from(this.candidates))
+      : this.candidates;
 
-    const replace = () => {
-      const x = removed.pop() as any;
-      removeNext.push(x);
-      puzzle[x].value = orig[x].value;
-    };
-
-    const removeCell = () => {
-      remove();
-      if (this.hasOneSolution(puzzle)) {
-        return true;
-      }
-      replace();
-      return false;
-    };
-
-    let fails = 0;
-    while (removed.length < toRemove) {
-      if (!removeCell()) {
-        fails++;
-      } else {
-        console.log(`Removed ${removed.length} cells.`);
-        fails = 0;
-      }
-      if (fails > removeNext.length) {
-        fails = 0;
-        Array(removed.length)
-          .fill(null)
-          .forEach(() => replace());
-        shuffle(removeNext);
-      }
-    }
-
-    return puzzle;
-  }
-
-  /**
-   * Attempt to solve the puzzle "optimistically". Only sets values which are
-   * certain, i.e. no guesses are made.
-   *
-   * Useful as a first pass.
-   *
-   * @param puzzle a region-ordered array of cells (each cell an object with
-   *   a `value` key.
-   * @returns whether the puzzle was completely solved
-   */
-  optimisticSolver(puzzle: Puzzle) {
-    const regions = this.chunkRegions(puzzle);
-    const rows = this.regionsToRows(puzzle, true);
-    const cols = this.regionsToCols(puzzle, true);
-
-    const solve = (): boolean => {
-      let foundValue = false;
-      let foundEmpty = false;
-
-      for (let i = 0, len = puzzle.length; i < len; i++) {
-        const cell = puzzle[i];
-        if (!!cell.value) continue;
-        foundEmpty = true;
-        const region = this.regionFromRegionIndex(i);
-        const [row, col] = this.rowColFromRegionIndex(i);
-        const taken = getTakenValues(regions[region], rows[row], cols[col]);
-        if (taken.size === this.regionCells - 1) {
-          cell.value = this.getLegalValues(taken)[0];
-          foundValue = true;
+    const dlxRows: DNode[] = [];
+    candidates.forEach(([i, row, col, region, val]) => {
+      if (cells) {
+        const exist = cells[row][col].value;
+        if (exist && exist - 1 !== val) {
+          // skip candidates matching this constraint's position, but not its value
+          // the effect is the exisitng value is preserved in the output
+          return;
         }
       }
-      return foundValue && foundEmpty ? solve() : !foundEmpty;
-    };
 
-    return solve();
+      const meta = { row, col, region, value: val + 1 };
+      const dlxRow = linkNodesLR(
+        this.getConstraintIDs(val, row, col, region).map((id) =>
+          addNodeToColumn(constraints[id], meta)
+        )
+      );
+      dlxRows.push(dlxRow[0]);
+    });
+
+    return [header, dlxRows];
   }
 
-  /**
-   * Backtracking solver. Mutates the puzzle during solve but eventually returns
-   * it to its initial state.
-   *
-   * @param puzzle see optimisticSolver
-   * @param stopAfter stop looking after this many solutions
-   * @param guessStrategy a function which takes an array of possible
-   *   values for a cell, and returns the same values (in any order)
-   * @returns the number of solutions found
-   */
-  backTrackingSolver(
-    puzzle: Puzzle,
-    stopAfter: number = -1,
-    guessStrategy: (values: number[]) => number[] = (values: number[]) => values
-  ) {
-    const regions = this.chunkRegions(puzzle);
-    const rows = this.regionsToRows(puzzle, true);
-    const cols = this.regionsToCols(puzzle, true);
+  _baseBoard(): Cell[][] {
+    // return a sudoku board with a random set of values in the first row
+    // used in generateComplete for small speedup
+    const firstRow = range(1, this.values + 1);
+    shuffle(firstRow);
+    return [
+      firstRow.map((value) => ({ value })),
+      ...Array(this.values - 1)
+        .fill(null)
+        .map(() =>
+          Array(this.values)
+            .fill(0)
+            .map((val) => ({ value: val > 0 ? val : null }))
+        ),
+    ];
+  }
+
+  generateComplete() {
+    const result = this._baseBoard();
+    const [header] = this.getDLXHeader(result, true);
+
+    const callback = (solution: DNode[]) => {
+      solution.forEach((node) => {
+        const meta: NodeMeta = node.meta;
+        result[meta.row][meta.col] = { value: meta.value };
+      });
+      // return the first solution
+      return true;
+    };
+
+    const dlx = new DLX(header, callback);
+
+    dlx.search();
+    return result;
+  }
+
+  generate(clues: number, attempts = Infinity, totalTime = Infinity) {
+    const completed = this.generateComplete();
+
+    const [header, dlxRows] = this.getDLXHeader(); // complete header - no candidates removed
 
     let solutions = 0;
-    const solve = (): boolean => {
-      for (let i = 0, len = puzzle.length; i < len; i++) {
-        const cell = puzzle[i];
-        if (!cell.value) {
-          const region = this.regionFromRegionIndex(i);
-          const [row, col] = this.rowColFromRegionIndex(i);
-          const avail = guessStrategy(
-            this.getLegalValues(
-              getTakenValues(regions[region], rows[row], cols[col])
-            )
-          );
-          for (let j = 0; j < avail.length; j++) {
-            cell.value = avail[j];
-            if (solve() && solutions === stopAfter) {
-              return true;
-            }
-            cell.value = null;
-          }
-          return false;
-        }
-      }
-      solutions++;
-      return true;
+    const dlx = new DLX(header, () => ++solutions >= 2);
+
+    const candidates: DNode[][][] = Array.from(Array(this.values), () =>
+      Array.from(Array(this.values), () => Array(this.values))
+    );
+    dlxRows.forEach((node) => {
+      const meta = node.meta;
+      candidates[meta.row][meta.col][meta.value - 1] = node;
+    });
+
+    // board positions which have been removed, in the order they've been removed
+    const removed: Set<number> = new Set();
+    const masked: DNode[] = [];
+
+    const hasOneSolution = () => {
+      solutions = 0;
+      dlx.search();
+      return solutions === 1;
     };
 
-    solve();
+    const mask = () => {
+      // mask all DLX rows which are nullified by existing values
+      for (let n = 0; n < this.values2; n++) {
+        if (removed.has(n)) {
+          continue;
+        }
+        const row = Math.floor(n / this.values);
+        const col = n % this.values;
+        const existValue = completed[row][col].value;
+        const nodes = candidates[row][col];
+        // console.log(row, col);
+        // console.log(existValue);
+        nodes.forEach((node) => {
+          if (node.meta.value !== existValue) {
+            // console.log(node.meta);
+            // console.log("masking node");
+            masked.push(node);
+            maskRow(node);
+          }
+        });
+      }
+    };
 
-    return solutions;
+    const unmask = () => {
+      // unmask all DLX rows
+      while (masked.length > 0) {
+        unmaskRow(masked.pop()!);
+      }
+    };
+
+    const start = Date.now();
+    const elapsed = () => Date.now() - start;
+
+    const removeable = Array.from(this.indexes);
+    const attempt = () => {
+      // attempt remove cells until 'clues' cells remain
+      shuffle(removeable);
+      for (let n = 0; n < this.values2; n++) {
+        if (elapsed() > totalTime || this.values2 - removed.size == clues) {
+          break;
+        }
+
+        let toRemove = removeable[n];
+        removed.add(toRemove);
+        mask();
+
+        if (!hasOneSolution()) {
+          removed.delete(toRemove);
+        }
+
+        unmask();
+      }
+    };
+
+    while (
+      this.values2 - removed.size > clues &&
+      attempts > 0 &&
+      elapsed() < totalTime
+    ) {
+      // try to reach the clue goal up to `attempts` times or as long as
+      // elapsed time is less than `totalTime`
+      attempts--;
+      removed.clear();
+      attempt();
+    }
+
+    removed.forEach((index) => {
+      completed[Math.floor(index / this.values)][
+        index % this.values
+      ].value = null;
+    });
+    return completed;
+  }
+
+  solve(existing: Cell[][]): void {
+    const [header] = this.getDLXHeader(existing);
+    const callback = (solution: DNode[]) => {
+      solution.forEach((node) => {
+        const meta: NodeMeta = node.meta;
+        existing[meta.row][meta.col] = { value: meta.value };
+      });
+      // return the first solution
+      return true;
+    };
+    new DLX(header, callback).search();
   }
 }
