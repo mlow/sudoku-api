@@ -3,7 +3,7 @@ import { StaticPool, isTimeoutError } from "node-worker-threads-pool";
 import WORKERS from "physical-cpu-count";
 const TIMEOUT = 20000;
 
-export type Cell = { value: number | null };
+export type Cell = { value: number };
 
 export type GenerateArguments = {
   regionWidth: number;

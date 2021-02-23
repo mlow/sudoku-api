@@ -20,14 +20,20 @@ type NodeMeta = {
 type BoardInfo = [number, number, number, number, number];
 
 export class SudokuMath {
+  /** The width of each region */
   regionWidth: number;
+  /** The height of each region */
   regionHeight: number;
 
+  /** The number of unqiue values in this sudoku */
   values: number;
+  /** The squared number of unique values - also the total number of cells */
   values2: number;
 
+  /** An array of board indexes (a range from 0 to `values2 - 1`) */
   indexes: number[];
 
+  /** A cache of the possible cadidate rows of this sudoku. */
   candidates: BoardInfo[];
 
   constructor(regionWidth: number, regionHeight: number) {
@@ -130,8 +136,7 @@ export class SudokuMath {
   _baseBoard(): Cell[][] {
     // return a sudoku board with a random set of values in the first row
     // used in generateComplete for small speedup
-    const firstRow = range(1, this.values + 1);
-    shuffle(firstRow);
+    const firstRow = shuffle(range(1, this.values + 1));
     return [
       firstRow.map((value) => ({ value })),
       ...Array(this.values - 1)
@@ -139,7 +144,7 @@ export class SudokuMath {
         .map(() =>
           Array(this.values)
             .fill(0)
-            .map((val) => ({ value: val > 0 ? val : null }))
+            .map((value) => ({ value }))
         ),
     ];
   }
@@ -179,8 +184,8 @@ export class SudokuMath {
       candidates[meta.row][meta.col][meta.value - 1] = node;
     });
 
-    // board positions which have been removed, in the order they've been removed
-    const removed: Set<number> = new Set();
+    // board positions which have been removed
+    const removed = new Set<number>();
     const masked: DNode[] = [];
 
     const hasOneSolution = () => {
@@ -199,12 +204,8 @@ export class SudokuMath {
         const col = n % this.values;
         const existValue = completed[row][col].value;
         const nodes = candidates[row][col];
-        // console.log(row, col);
-        // console.log(existValue);
         nodes.forEach((node) => {
           if (node.meta.value !== existValue) {
-            // console.log(node.meta);
-            // console.log("masking node");
             masked.push(node);
             maskRow(node);
           }
@@ -256,9 +257,7 @@ export class SudokuMath {
     }
 
     removed.forEach((index) => {
-      completed[Math.floor(index / this.values)][
-        index % this.values
-      ].value = null;
+      completed[Math.floor(index / this.values)][index % this.values].value = 0;
     });
     return completed;
   }
