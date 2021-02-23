@@ -3,12 +3,17 @@ import { applyGraphQL } from "./graphql";
 import { typeDefs, resolvers } from "./graphql/index";
 import stoppable from "stoppable";
 
+import cors from "@koa/cors";
+
 const runtime: { server: undefined | stoppable.StoppableServer } = {
   server: undefined,
 };
 
 async function main() {
   const app = new Application();
+
+  app.use(cors());
+
   app.use(
     bodyParser({
       enableTypes: ["json"],
