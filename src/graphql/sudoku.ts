@@ -2,9 +2,6 @@ import { gql } from "../mods";
 import { generate, GenerateArguments } from "../sudoku/index";
 
 export const typeDefs = gql`
-  type Cell {
-    value: Int
-  }
   """
   A sudoku
   """
@@ -19,7 +16,7 @@ export const typeDefs = gql`
     size: Int!
 
     "The rows of the board, from top to bottom."
-    cells: [[Cell!]!]!
+    cells: [Int!]!
   }
 
   type Query {

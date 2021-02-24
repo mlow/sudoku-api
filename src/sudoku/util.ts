@@ -48,39 +48,43 @@ export function mapArray(arr: any[], indexes: number[]) {
 }
 
 export function clone(puzz: Cell[]): Cell[] {
-  return puzz.map(({ value }) => ({ value }));
+  return Array.from(puzz);
 }
 
 export function addCellValuesToSet(set: Set<number>, cells: Cell[]) {
   cells.forEach((cell) => {
-    if (!!cell.value) set.add(cell.value);
+    if (cell > 0) set.add(cell);
   });
   return set;
 }
 
-export function prettyPrint(puzzle: Cell[][]) {
-  let width = Math.sqrt(puzzle[0].length);
-  let height = Math.sqrt(puzzle.length);
+export function prettyPrint(width: number, height: number, cells: Cell[]) {
+  const side = width * height;
+  let line = "";
+  cells.forEach((cell, i) => {
+    if (i > 0 && i % side == 0) {
+      console.log(line);
+      line = "";
 
-  puzzle.forEach((row, i) => {
-    let line = "";
-    row.forEach(({ value: cell }, j) => {
-      if (j > 0 && j % width == 0) {
-        line += "| ";
+      if (i > 0 && Math.floor(i / side) % height == 0) {
+        let divider = "";
+        Array(width * height)
+          .fill(null)
+          .forEach((_, j) => {
+            if (j > 0 && j % width == 0) {
+              divider += "  ";
+            }
+            divider += "---";
+          });
+        console.log(divider);
       }
-      line += ((cell ? cell : " ") + " ").padStart(3, " ");
-    });
-
-    if (i > 0 && i % height == 0) {
-      let divider = "";
-      row.forEach((_, j) => {
-        if (j > 0 && j % width == 0) {
-          divider += "  ";
-        }
-        divider += "-- ";
-      });
-      console.log(divider);
     }
-    console.log(line);
+
+    if (i % side !== 0 && i % width === 0) {
+      line += "| ";
+    }
+
+    line += (cell > 0 ? `${cell}` : "").padStart(2, " ") + " ";
   });
+  console.log(line);
 }

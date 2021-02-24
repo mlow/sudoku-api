@@ -11,6 +11,7 @@ import { shuffle, range } from "./util";
 import { Cell } from "./index";
 
 type NodeMeta = {
+  index: number;
   row: number;
   col: number;
   region: number;
@@ -73,11 +74,11 @@ export class SudokuMath {
       Math.floor(row / this.regionHeight) * this.regionHeight +
       Math.floor(col / this.regionWidth);
     const val = candidate % this.values;
-    return [candidate, row, col, region, val];
+    return [boardIndex, row, col, region, val];
   }
 
-  _checkInput(cells: Cell[][]) {
-    if (cells.length !== this.values || cells[0].length !== this.values) {
+  _checkInput(cells: Cell[]) {
+    if (cells.length !== this.values2) {
       throw new Error(
         "Given cells array does not match regionWidth & regionHeight"
       );
@@ -86,7 +87,7 @@ export class SudokuMath {
 
   // this takes a bit of time and the value may need to be cached
   getDLXHeader(
-    cells: undefined | Cell[][] = undefined,
+    cells: undefined | Cell[] = undefined,
     randomSearch = false
   ): [CNode, DNode[]] {
     if (cells) this._checkInput(cells);
@@ -111,9 +112,9 @@ export class SudokuMath {
       : this.candidates;
 
     const dlxRows: DNode[] = [];
-    candidates.forEach(([i, row, col, region, val]) => {
+    candidates.forEach(([boardIndex, row, col, region, val]) => {
       if (cells) {
-        const exist = cells[row][col].value;
+        const exist = cells[boardIndex];
         if (exist && exist - 1 !== val) {
           // skip candidates matching this constraint's position, but not its value
           // the effect is the exisitng value is preserved in the output
@@ -121,7 +122,7 @@ export class SudokuMath {
         }
       }
 
-      const meta = { row, col, region, value: val + 1 };
+      const meta = { index: boardIndex, row, col, region, value: val + 1 };
       const dlxRow = linkNodesLR(
         this.getConstraintIDs(val, row, col, region).map((id) =>
           addNodeToColumn(constraints[id], meta)
@@ -133,20 +134,11 @@ export class SudokuMath {
     return [header, dlxRows];
   }
 
-  _baseBoard(): Cell[][] {
+  _baseBoard(): Cell[] {
     // return a sudoku board with a random set of values in the first row
     // used in generateComplete for small speedup
     const firstRow = shuffle(range(1, this.values + 1));
-    return [
-      firstRow.map((value) => ({ value })),
-      ...Array(this.values - 1)
-        .fill(null)
-        .map(() =>
-          Array(this.values)
-            .fill(0)
-            .map((value) => ({ value }))
-        ),
-    ];
+    return [...firstRow, ...Array(this.values2 - this.values).fill(0)];
   }
 
   generateComplete() {
@@ -156,7 +148,7 @@ export class SudokuMath {
     const callback = (solution: DNode[]) => {
       solution.forEach((node) => {
         const meta: NodeMeta = node.meta;
-        result[meta.row][meta.col] = { value: meta.value };
+        result[meta.index] = meta.value;
       });
       // return the first solution
       return true;
@@ -176,12 +168,12 @@ export class SudokuMath {
     let solutions = 0;
     const dlx = new DLX(header, () => ++solutions >= 2);
 
-    const candidates: DNode[][][] = Array.from(Array(this.values), () =>
-      Array.from(Array(this.values), () => Array(this.values))
+    const candidates: DNode[][] = Array.from(Array(this.values2), () =>
+      Array.from(Array(this.values))
     );
     dlxRows.forEach((node) => {
       const meta = node.meta;
-      candidates[meta.row][meta.col][meta.value - 1] = node;
+      candidates[meta.index][meta.value - 1] = node;
     });
 
     // board positions which have been removed
@@ -200,12 +192,9 @@ export class SudokuMath {
         if (removed.has(n)) {
           continue;
         }
-        const row = Math.floor(n / this.values);
-        const col = n % this.values;
-        const existValue = completed[row][col].value;
-        const nodes = candidates[row][col];
+        const nodes = candidates[n];
         nodes.forEach((node) => {
-          if (node.meta.value !== existValue) {
+          if (node.meta.value !== completed[n]) {
             masked.push(node);
             maskRow(node);
           }
@@ -257,17 +246,17 @@ export class SudokuMath {
     }
 
     removed.forEach((index) => {
-      completed[Math.floor(index / this.values)][index % this.values].value = 0;
+      completed[index] = 0;
     });
     return completed;
   }
 
-  solve(existing: Cell[][]): void {
+  solve(existing: Cell[]): void {
     const [header] = this.getDLXHeader(existing);
     const callback = (solution: DNode[]) => {
       solution.forEach((node) => {
         const meta: NodeMeta = node.meta;
-        existing[meta.row][meta.col] = { value: meta.value };
+        existing[meta.index] = meta.value;
       });
       // return the first solution
       return true;

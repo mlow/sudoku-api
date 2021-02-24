@@ -1,9 +1,10 @@
 import { StaticPool, isTimeoutError } from "node-worker-threads-pool";
 
 import WORKERS from "physical-cpu-count";
+import { prettyPrint } from "./util";
 const TIMEOUT = 20000;
 
-export type Cell = { value: number };
+export type Cell = number;
 
 export type GenerateArguments = {
   regionWidth: number;
@@ -15,10 +16,10 @@ export type Sudoku = {
   regionWidth: number;
   regionHeight: number;
   size: number;
-  cells: Cell[][];
+  cells: Cell[];
 };
 
-const pool = new StaticPool<GenerateArguments, Cell[][]>({
+const pool = new StaticPool<GenerateArguments, Cell[]>({
   size: WORKERS,
   task: "./src/sudoku/worker.js",
 });
@@ -43,6 +44,8 @@ export async function generate(
       },
       TIMEOUT
     );
+
+    prettyPrint(regionWidth, regionHeight, puzzle);
 
     return {
       regionWidth,
