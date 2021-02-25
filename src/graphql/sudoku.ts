@@ -1,5 +1,5 @@
-import { gql } from "../mods";
-import { generate, GenerateArguments } from "../sudoku/index";
+import { gql } from "../mods.js";
+import { generate, GenerateArguments } from "../sudoku/index.js";
 
 export const typeDefs = gql`
   """

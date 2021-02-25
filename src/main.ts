@@ -1,6 +1,6 @@
-import { Application, bodyParser } from "./mods";
-import { applyGraphQL } from "./graphql";
-import { typeDefs, resolvers } from "./graphql/index";
+import { Application, bodyParser } from "./mods.js";
+import { applyGraphQL } from "./graphql.js";
+import { typeDefs, resolvers } from "./graphql/index.js";
 import stoppable from "stoppable";
 
 import cors from "@koa/cors";

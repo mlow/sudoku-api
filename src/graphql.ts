@@ -4,7 +4,7 @@ import {
   RouterContext,
   graphql,
   makeExecutableSchema,
-} from "./mods";
+} from "./mods.js";
 
 export interface ResolversProps {
   Query?: any;

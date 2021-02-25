@@ -1,15 +1,13 @@
-const { SudokuMath } = require("./math");
-const { parentPort } = require("worker_threads");
+import { SudokuMath } from "./math.js";
+import { expose } from "threads/worker";
 
 const maths = {};
 
-parentPort.on("message", ({ regionWidth, regionHeight, clues }) => {
-  const math =
-    maths[`${regionWidth}:${regionHeight}`] ||
-    (maths[`${regionWidth}:${regionHeight}`] = new SudokuMath(
-      regionWidth,
-      regionHeight
-    ));
-  const puzzle = math.generate(clues);
-  parentPort.postMessage(puzzle);
+expose({
+  generate(regionWidth, regionHeight, clues) {
+    const key = `${regionWidth}:${regionHeight}`;
+    const math =
+      maths[key] ?? (maths[key] = new SudokuMath(regionWidth, regionHeight));
+    return math.generate(clues);
+  },
 });

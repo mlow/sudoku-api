@@ -6,9 +6,9 @@ import {
   addNodeToColumn,
   maskRow,
   unmaskRow,
-} from "./dlx";
-import { shuffle, range } from "./util";
-import { Cell } from "./index";
+} from "./dlx.js";
+import { shuffle, range } from "./util.js";
+import { Cell } from "./index.js";
 
 type NodeMeta = {
   index: number;

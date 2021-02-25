@@ -1,4 +1,4 @@
-import { Cell } from "./index";
+import { Cell } from "./index.js";
 
 export function randInt(lower: number, upper: number) {
   return Math.floor(Math.random() * (upper - lower)) + lower;
