@@ -33,17 +33,12 @@ type SolutionCallback = (output: DNode[]) => boolean;
 type ColumnSelector = (header: CNode) => CNode;
 
 function selectColumnSizeHeuristic(header: CNode): CNode {
-  let minSize = Infinity;
-  let minColumn: CNode | undefined;
-  let curColumn = header;
+  let minColumn = header.right;
+  let curColumn = minColumn;
   while ((curColumn = curColumn.right) !== header) {
-    if (curColumn.column.size < minSize) {
-      minSize = curColumn.column.size;
+    if (curColumn.size < minColumn.size) {
       minColumn = curColumn;
     }
-  }
-  if (!minColumn) {
-    throw new Error("minColumn is undefined, this shouldn't be possible.");
   }
   return minColumn;
 }
