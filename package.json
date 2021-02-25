@@ -14,9 +14,9 @@
     "koa": "^2.13.1",
     "koa-bodyparser": "^4.3.0",
     "koa-router": "^9.4.0",
-    "node-worker-threads-pool": "^1.4.3",
     "physical-cpu-count": "^2.0.0",
-    "stoppable": "^1.1.0"
+    "stoppable": "^1.1.0",
+    "threads": "^1.6.3"
   },
   "devDependencies": {
     "@types/koa": "^2.13.0",
@@ -27,12 +27,12 @@
     "@types/physical-cpu-count": "^2.0.0",
     "@types/stoppable": "^1.1.0",
     "nodemon": "^2.0.7",
-    "ts-node": "^8.10.2",
+    "ts-node": "^9.1.1",
     "typescript": "^3.9.9"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node -r dotenv/config -r ts-node/register src/main.ts",
+    "start": "node -r dotenv/config --loader ts-node/esm src/main.ts",
     "serve": "nodemon"
   },
   "nodemonConfig": {
@@ -44,5 +44,6 @@
   },
   "author": "Matt Low <matt@mlow.ca>",
   "license": "UNLICENSED",
+  "type": "module",
   "private": true
 }
