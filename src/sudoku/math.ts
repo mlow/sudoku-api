@@ -144,17 +144,14 @@ export class SudokuMath {
   generateComplete(): [number[], number] {
     const result = this._baseBoard();
     const [header] = this.getDLXHeader(result, true);
-
-    const callback = (solution: DNode[]) => {
+    const dlx = new DLX(header, (solution: DNode[]) => {
       solution.forEach((node) => {
         const meta: NodeMeta = node.meta;
         result[meta.index] = meta.value;
       });
-      // return the first solution
+      // stop after the first solution
       return true;
-    };
-
-    const dlx = new DLX(header, callback);
+    });
 
     dlx.search();
     return [result, dlx.updates];
@@ -176,10 +173,6 @@ export class SudokuMath {
       candidates[meta.index][meta.value - 1] = node;
     });
 
-    // board positions which have been removed
-    const removed = new Set<number>();
-    const masked: DNode[] = [];
-
     const hasOneSolution = () => {
       solutions = 0;
       dlx.search();
@@ -187,51 +180,81 @@ export class SudokuMath {
       return solutions === 1;
     };
 
-    const mask = () => {
-      // mask all DLX rows which are nullified by existing values
-      for (let n = 0; n < this.values2; n++) {
-        if (removed.has(n)) {
+    const start = Date.now();
+    const elapsed = () => Date.now() - start;
+
+    // masked rows in the order they were masked
+    const masked: DNode[] = [];
+
+    const maskAtIdx = (idx: number) => {
+      const nodes = candidates[idx];
+      nodes.forEach((node) => {
+        if (node.meta.value !== completed[idx]) {
+          masked.push(node);
+          maskRow(node);
+        }
+      });
+    };
+
+    const removed = new Set<number>();
+    const removeable = Array.from(this.indexes);
+
+    const maskUpto = (n: number) => {
+      for (let j = 0; j < n; j++) {
+        // process up to what we've handled
+        const idx = removeable[j];
+        if (removed.has(idx)) {
+          // if we've removed this cell, do not mask it
           continue;
         }
-        const nodes = candidates[n];
-        nodes.forEach((node) => {
-          if (node.meta.value !== completed[n]) {
-            masked.push(node);
-            maskRow(node);
-          }
-        });
+        // otherwise, we had given up it; mask it leaving the original value
+        // we won't try this cell again
+        maskAtIdx(idx);
+      }
+
+      for (let j = this.values2 - 1; j >= n; j--) {
+        // for all those we haven't handled, mask leaving the original values
+        // for us to to attempt to unmask one cell at a time
+        maskAtIdx(removeable[j]);
       }
     };
 
-    const unmask = () => {
-      // unmask all DLX rows
-      while (masked.length > 0) {
+    const unmaskAll = () => {
+      let node;
+      while ((node = masked.pop())) {
+        unmaskRow(node);
+      }
+    };
+
+    const unmaskNextCell = () => {
+      for (let j = 0; j < this.values - 1; j++) {
         unmaskRow(masked.pop()!);
       }
     };
 
-    const start = Date.now();
-    const elapsed = () => Date.now() - start;
-
-    const removeable = Array.from(this.indexes);
     const attempt = () => {
       // attempt remove cells until 'clues' cells remain
       shuffle(removeable);
-      for (let n = 0; n < this.values2; n++) {
+      maskUpto(0);
+
+      for (let i = 0; i < this.values2; i++) {
         if (elapsed() > totalTime || this.values2 - removed.size == clues) {
           break;
         }
 
-        let toRemove = removeable[n];
-        removed.add(toRemove);
-        mask();
+        unmaskNextCell();
 
         if (!hasOneSolution()) {
-          removed.delete(toRemove);
+          // failed attempt. prepare for next
+          unmaskAll();
+          maskUpto(i + 1);
+          continue;
         }
 
-        unmask();
+        removed.add(removeable[i]);
       }
+
+      unmaskAll();
     };
 
     while (
