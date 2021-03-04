@@ -141,7 +141,7 @@ export class SudokuMath {
     return [...firstRow, ...Array(this.values2 - this.values).fill(0)];
   }
 
-  generateComplete() {
+  generateComplete(): [number[], number] {
     const result = this._baseBoard();
     const [header] = this.getDLXHeader(result, true);
 
@@ -157,11 +157,11 @@ export class SudokuMath {
     const dlx = new DLX(header, callback);
 
     dlx.search();
-    return result;
+    return [result, dlx.updates];
   }
 
   generate(clues: number, attempts = Infinity, totalTime = Infinity) {
-    const completed = this.generateComplete();
+    let [completed, updates] = this.generateComplete();
 
     const [header, dlxRows] = this.getDLXHeader(); // complete header - no candidates removed
 
@@ -183,6 +183,7 @@ export class SudokuMath {
     const hasOneSolution = () => {
       solutions = 0;
       dlx.search();
+      updates += dlx.updates;
       return solutions === 1;
     };
 
@@ -248,6 +249,7 @@ export class SudokuMath {
     removed.forEach((index) => {
       completed[index] = 0;
     });
+    console.log("DLX updates:", updates);
     return completed;
   }
 
