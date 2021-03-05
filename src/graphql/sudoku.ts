@@ -1,10 +1,5 @@
 import { gql } from "../mods.js";
-import {
-  solve,
-  generate,
-  GenerateArguments,
-  SolveArguments,
-} from "../sudoku/index.js";
+import { Sudoku, GenerateArguments, SolveArguments } from "../sudoku/index.js";
 
 export const typeDefs = gql`
   """
@@ -33,9 +28,16 @@ export const typeDefs = gql`
   }
 `;
 
+interface SudokuFuncs {
+  solve(args: SolveArguments): Promise<Sudoku> | Sudoku;
+  generate(args: GenerateArguments): Promise<Sudoku> | Sudoku;
+}
+
 export const resolvers = {
   Query: {
-    generate: (obj: any, args: GenerateArguments) => generate(args),
-    solve: (obj: any, args: SolveArguments) => solve(args),
+    generate: (obj: any, args: GenerateArguments, ctx: SudokuFuncs) =>
+      ctx.generate(args),
+    solve: (obj: any, args: SolveArguments, ctx: SudokuFuncs) =>
+      ctx.solve(args),
   },
 };

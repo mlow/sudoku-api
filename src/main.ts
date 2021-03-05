@@ -1,6 +1,13 @@
 import { Application, bodyParser } from "./mods.js";
 import { applyGraphQL } from "./graphql.js";
 import { typeDefs, resolvers } from "./graphql/index.js";
+import {
+  initializeWorkers,
+  solve,
+  generate,
+  solveSync,
+  generateSync,
+} from "./sudoku/index.js";
 import stoppable from "stoppable";
 
 import cors from "@koa/cors";
@@ -31,10 +38,25 @@ async function main() {
     );
   });
 
+  let sudokuFuncs: any;
+  if (process.env.USE_WORKER_THREADS) {
+    initializeWorkers();
+    sudokuFuncs = {
+      solve,
+      generate,
+    };
+  } else {
+    sudokuFuncs = {
+      solve: solveSync,
+      generate: generateSync,
+    };
+  }
+
   applyGraphQL({
     app,
     typeDefs: typeDefs,
     resolvers: resolvers,
+    context: () => sudokuFuncs,
   });
 
   runtime.server = stoppable(

@@ -49,13 +49,12 @@ function spawnWorker() {
   );
 }
 
-function initialize() {
+export function initializeWorkers() {
   console.log(`Starting ${WORKERS} worker threads`);
   for (let n = 0; n < WORKERS; n++) {
     spawnWorker();
   }
 }
-initialize();
 
 function pickWorker() {
   const proxy = available.pop();
@@ -165,7 +164,7 @@ export function solveSync({
   regionWidth,
   regionHeight,
   cells,
-}: SolveArguments) {
+}: SolveArguments): Sudoku {
   const size = (regionWidth * regionHeight) ** 2;
   if (size !== cells.length) {
     throw new Error(
