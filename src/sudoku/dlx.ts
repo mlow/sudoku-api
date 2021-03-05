@@ -114,10 +114,10 @@ export class DLX {
 
     let row = c as DNode;
     while ((row = row.down) !== c) {
-      // traverse DOWN the rows this column contained
+      // traverse down the rows this column
       let col = row;
       while ((col = col.right) !== row) {
-        // traverse the columns of this row (to the RIGHT)
+        // traverse the columns of this row to the right
 
         // remove this node from its column, and shrink its column's size
         this.updates++;

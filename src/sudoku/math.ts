@@ -236,8 +236,11 @@ export class SudokuMath {
       }
     };
 
+    let best = 0;
     const attempt = () => {
-      // attempt remove cells until 'clues' cells remain
+      // attempt to remove cells until 'clues' cells remain
+      attempts--;
+      removed.clear();
       shuffle(removeable);
       maskUpto(0);
 
@@ -245,7 +248,6 @@ export class SudokuMath {
         if (elapsed() > totalTime || this.values2 - removed.size == clues) {
           break;
         }
-
         unmaskNextCell();
 
         if (!hasOneSolution()) {
@@ -256,6 +258,9 @@ export class SudokuMath {
         }
 
         removed.add(removeable[i]);
+      }
+      if (removed.size > best) {
+        best = removed.size;
       }
 
       unmaskAll();
@@ -268,28 +273,37 @@ export class SudokuMath {
     ) {
       // try to reach the clue goal up to `attempts` times or as long as
       // elapsed time is less than `totalTime`
-      attempts--;
-      removed.clear();
       attempt();
     }
 
     removed.forEach((index) => {
       completed[index] = 0;
     });
-    console.log("DLX updates:", updates);
     return completed;
   }
 
-  solve(existing: Cell[]): void {
-    const [header] = this.getDLXHeader(existing);
+  solve(puzzle: Cell[]) {
+    const [header] = this.getDLXHeader(puzzle);
+    let solved = false;
     const callback = (solution: DNode[]) => {
       solution.forEach((node) => {
         const meta: NodeMeta = node.meta;
-        existing[meta.index] = meta.value;
+        puzzle[meta.index] = meta.value;
       });
+      solved = true;
       // return the first solution
       return true;
     };
     new DLX(header, callback).search();
+    return solved;
+  }
+
+  static maths: { [key: string]: SudokuMath } = {};
+  static get(regionWidth: number, regionHeight: number) {
+    const key = `${regionWidth}:${regionHeight}`;
+    return (
+      SudokuMath.maths[key] ??
+      (SudokuMath.maths[key] = new SudokuMath(regionWidth, regionHeight))
+    );
   }
 }
