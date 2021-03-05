@@ -158,6 +158,10 @@ export class SudokuMath {
   }
 
   generate(clues: number, attempts = Infinity, totalTime = Infinity) {
+    if (clues === 0) {
+      return Array(this.values2).fill(0);
+    }
+
     let [completed, updates] = this.generateComplete();
 
     const [header, dlxRows] = this.getDLXHeader(); // complete header - no candidates removed
